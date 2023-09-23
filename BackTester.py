@@ -4,19 +4,12 @@ import backtrader.analyzers as btanalyzers
 import datetime
 import Utils.BuildKlines as BuildKlines
 from Strategies.VolumeBasedStrategy import VolumeBased
+from Strategies.MACrossStrategy import MACross
 
 
 class BackTester:
-    def __init__(self, filename, flag='raw', multitimeframe=False, size_percentage=1, cash=1000000, commission=0.001):
+    def __init__(self, filename, flag='raw', multitimeframe=False, size_percentage=30, cash=1000000, commission=0.001):
         # 初始化數據
-        # self.new_df = BuildKlines.convert_mpl_format(df=pd.read_csv(filename))
-        # self.daily_df = BuildKlines.resample_dataframe(df=self.new_df, freq='D')
-        # Compression=60 一小時
-        # self.data = bt.feeds.PandasData(dataname=self.new_df, timeframe=bt.TimeFrame.Minutes, compression=60)
-        # self.data = bt.feeds.PandasData(dataname=self.new_df)
-        # print(self.data)
-        # Start Time: 2020-06-24
-        # End Time: 2023-07-25
         if flag == 'raw':
             self.data = bt.feeds.GenericCSVData(
                 dataname=filename,
@@ -32,6 +25,23 @@ class BackTester:
                 volume=10,
                 openinterest=-1
             )
+        elif flag == 'dataframe':
+            
+            dtype = {
+                'Open': 'float64',
+                'High': 'float64',
+                'Low': 'float64',
+                'Close': 'float64',
+                'Volume': 'float64'
+            }
+            print('Loading data...')
+            df = pd.read_csv(filename, dtype=dtype, parse_dates=['Time'], index_col='Time')
+            print(df.head())
+            print('Feeding data to backtrader...')
+            self.data = bt.feeds.PandasData(
+                                            dataname=df,
+                                            timeframe=bt.TimeFrame.Minutes
+                                            )
         else:
             self.data = bt.feeds.GenericCSVData(
                 dataname=filename,
@@ -47,6 +57,7 @@ class BackTester:
                 volume=5,
                 openinterest=-1
             )
+
 
         # 初始化cerebro
         self.cerebro = bt.Cerebro()
@@ -69,6 +80,10 @@ class BackTester:
 
     def backtest_Volume_strategy(self):
         self.cerebro.addstrategy(VolumeBased)
+        return self.cerebro.run()
+    
+    def backtest_MACross_strategy(self):
+        self.cerebro.addstrategy(MACross)
         return self.cerebro.run()
     
     def analysis(self, backtest):
@@ -101,11 +116,13 @@ class BackTester:
 
 
 if __name__ == '__main__':
-    file_list = ['btcusdt.csv', 'ethusdt.csv']
+    file_list = ['btcusdt.csv', 'ethusdt.csv', 'BTCUSDT_1m.csv', 'BTCUSDT_8H.csv']
     # backtester_1 = BackTester(file_list[2], flag="new", size_percentage=2)
     # backtester_1 = BackTester(file_list[0], size_percentage=10)
-    backtester_1 = BackTester(file_list[0])
-    btc_backtest_result = backtester_1.backtest_Volume_strategy()
+    # backtester_1 = BackTester(file_list[2], flag='binance', size_percentage=10)
+    backtester_1 = BackTester(file_list[3], flag='dataframe', size_percentage=5)
+    # btc_backtest_result = backtester_1.backtest_Volume_strategy()
+    btc_backtest_result = backtester_1.backtest_MACross_strategy()
     backtester_1.analysis(backtest=btc_backtest_result[0])
 
     print(f'Sharpe Ratio: {backtester_1.sharpe_ratio["sharperatio"]:.2f}')
