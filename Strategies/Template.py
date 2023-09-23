@@ -5,8 +5,8 @@ import backtrader as bt
 class NewStrategy(bt.Strategy):
     # 設定參數
     params = (
-        ('param1', '1'),
-        ('param2', '2')
+        ('param1', 1),
+        ('param2', 2)
     )
 
     def __init__(self):
@@ -49,7 +49,7 @@ class NewStrategy(bt.Strategy):
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
-            self.log('Order ACCEPTED/SUBMITTED', dt=order.created.at)
+            self.log('Order ACCEPTED/SUBMITTED', dt=order.create.dt)
             self.order = order
             return
         
