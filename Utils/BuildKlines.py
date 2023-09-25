@@ -2,37 +2,38 @@ import pandas as pd
 import mplfinance as mpf
 import json
 
-def convert_mpl_format(df, freq_range=None):
+def convert_mpl_format(df, timestamp_col='Time', freq_range=None):
     # 轉換時間DateTime
-    df['openTime'] = pd.to_datetime(df['openTime'])
+    df[timestamp_col] = pd.to_datetime(df[timestamp_col])
 
     # 指定openTime為index
-    df.set_index('openTime', inplace=True)
+    df.set_index(timestamp_col, inplace=True)
 
-    # 將索引名稱改為'datetime'
-    df.index.rename('Time', inplace=True)
-
-    # 取Price和Volume的欄位資料
-    df_price_vol = df.iloc[:,1:6]
+    if timestamp_col != 'Time':
+        # 將索引名稱改為'datetime'
+        df.index.rename('Time', inplace=True)
 
     # 更改columns的名稱，以讓mplfinance看得懂
-    df_price_vol.columns = ['Open','High','Low','Close', 'Volume']
+    df.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
 
     # 插值法填充，使用二階多項式插值
-    df_price_vol = df_price_vol.interpolate(method='polynomial', order=2)
+    # df = df.interpolate(method='polynomial', order=2)
 
     if freq_range is None:
-        return df_price_vol
+        return df
     else:
-        return df_price_vol.iloc[-1*freq_range:,:]
+        return df.iloc[-1*freq_range:,:]
     
 def save_mpl_format(df, filename, freq='H'):
     if freq != 'H':
         df = resample_dataframe(df=df, freq=freq)
-    if filename[-4:] == ".csv":
-        df.to_csv(f'{filename[:-4]}-{freq}.csv', index=True)
+    if filename.find('_'):
+        i = filename.index('_')
+        df.to_csv(f'{filename[:i]}_{freq}.csv', index=True)
+    elif filename[-4:] == ".csv":
+        df.to_csv(f'{filename[:-4]}_{freq}.csv', index=True)
     else:
-        df.to_csv(f'{filename}-{freq}.csv', index=True)
+        df.to_csv(f'{filename}_{freq}.csv', index=True)
 
 def resample_dataframe(df, freq):
     new_df = df.resample(freq).agg({
@@ -88,7 +89,9 @@ def resample_klines_save(filename, freq):
 
 
 if __name__ == '__main__':
-    abs_path = "YOUR_DIR_PATH"
-    filename = "btcusdt.csv"
-    resample_klines_save(filename=abs_path+filename, freq="1D")
-    # calculate_missing_ratio(filename=abs_path+filename)
+    abs_path = "YOUR_DIR"
+    filename = "BTCUSDT_1m.csv"
+    timeframe_list = ['1H', '4H', '1D']
+    for f in timeframe_list:
+        print(f'Resampling {filename} to {f} timeframe ...')
+        resample_klines_save(filename=abs_path+filename, freq=f)
