@@ -1,17 +1,17 @@
 import backtrader as bt
-
+from datetime import timedelta
 
 # Define your strategy
 class MACross(bt.Strategy):
     # 設定參數
     params = (
-        ('slow_period', 77),
-        ('fast_period', 34),
+        ('slow_period', 28),
+        ('fast_period', 14),
         ('rsi_period', 14),
-        ('long_side', 55),
-        ('short_side', 47),
-        ('stop_loss_pct', 0.12),
-        ('take_profit_pct', 0.18)
+        ('long_side', 56),
+        ('short_side', 44),
+        ('stop_loss_pct', 4),
+        ('retrace_stop_pct', 10)
     )
 
     def __init__(self):
@@ -31,53 +31,47 @@ class MACross(bt.Strategy):
         self.fastSMA = bt.ind.SMA(self.data.close, period=self.params.fast_period)
         self.slowSMA = bt.ind.SMA(self.data.close, period=self.params.slow_period)
         self.rsi = bt.ind.RSI(self.data.close, period=self.params.rsi_period)
+        # 紀錄進出場價格
+        self.entryLongPrice = None
+        self.stopLongPrice = None
+        self.retraceStopLongPrice = None
 
     def next(self):
-        # 打印每日收盤價
-        # self.log(f'Close: {self.dataclose[0]}')
+        if self.order:
+            return
+        
         # 買入和賣出觸發條件（單個或多個）
         self.SMACrossover = self.CrossOver(self.fastSMA, self.slowSMA)
         self.enterLongCond1 = self.SMACrossover and (self.rsi[0] > self.params.long_side)
         self.SMACrossunder = self.CrossUnder(self.fastSMA, self.slowSMA)
-        self.enterShortCond1 = self.SMACrossunder and (self.rsi[0] < self.params.short_side)
-
-        if self.order:
-            return
+        self.stopLongCond1 = self.SMACrossunder and (self.rsi[0] < self.params.short_side)
         
-        # 帳戶沒有部位
-        if not self.position:
-            # 進場條件
+        # 無倉位
+        if self.position.size == 0:
             # 做多
             if self.enterLongCond1:
-                self.log('BUY ' + ', Price: ' + str(self.dataclose[0]))
-                self.order = self.buy(price=self.dataclose[0], exectype=bt.Order.Market)
-            # 做空
-            elif self.enterShortCond1:
-                self.log('SELL ' + ', Price: ' + str(self.dataclose[0]))
-                self.order = self.sell(price=self.dataclose[0], execType=bt.Order.Market)
-        # 有部位，賣出條件
-        else:
-            # 有多頭部位
-            if self.position.size > 0:
-                self.takeProfit = self.position.price * (1 + self.params.take_profit_pct)
-                self.stopLoss = self.position.price * (1 - self.params.stop_loss_pct)
-                if self.dataclose[0] >= self.takeProfit or self.dataclose[0] <= self.stopLoss:
-                    self.order = self.close(price=self.dataclose[0], exectype=bt.Order.Market)
-            # 有空頭部位
-            elif self.position.size < 0:
-                self.takeProfit = self.position.price * (1 - self.params.take_profit_pct)
-                self.stopLoss = self.position.price * (1 + self.params.stop_loss_pct)
-                if self.dataclose[0] <= self.takeProfit or self.dataclose[0] >= self.stopLoss:
-                    self.order = self.close(price=self.dataclose[0], exectype=bt.Order.Market)
+                self.log(f'BUY, Price: {self.dataclose[0]}')
+                self.stopLongPrice = self.dataclose[0] * (1 - (self.params.stop_loss_pct / 100))
+                self.order = self.buy(exectype=bt.Order.Market)
+        # 有倉位
+        elif self.position.size > 0:
+            # 設置回落停損點
+            if (self.dataclose[0] > self.dataclose[-1]):
+                self.retraceStopLongPrice = self.dataclose[0] * (1 - (self.params.retrace_stop_pct / 100))
+                self.log(f'Sell, Price: {self.retraceStopLongPrice}')
+                self.order = self.sell(price=self.retraceStopLongPrice, exectype=bt.Order.Stop, size=self.position.size, valid=timedelta(hours=1))
+            # RSI條件觸發停損
+            if self.stopLongCond1:
+                self.log(f'Sell, Price: {self.dataclose[0]}')
+                self.order = self.close(exectype=bt.Order.Market)
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
             self.log('Order ACCEPTED/SUBMITTED', dt=order.created.dt)
-            self.order = order
             return
         
         if order.status in [order.Expired]:
-            self.log('Buy Expired')
+            self.log('Order Expired')
 
         elif order.status in [order.Completed]:
             if order.isbuy():
@@ -124,11 +118,10 @@ class MACross(bt.Strategy):
     # 優化參數用
     def stop(self):
         print(self.params.slow_period, self.params.fast_period, self.params.rsi_period,
-              self.params.long_side, self.params.short_side, self.params.stop_loss_pct,
-              self.params.take_profit_pct, self.broker.getvalue())
+              self.params.long_side, self.params.short_side, self.params.stop_loss_pct, self.broker.getvalue())
         
     def CrossOver(self, a, b):
-        return (a[0] > b[0]) and (a[-1] < b[-1])
+        return (a[0] > b[0], a[-1] <= b[-1])
     
     def CrossUnder(self, a, b):
-        return (a[0] < b[0]) and (a[-1] > b[-1])
+        return (a[0] < b[0], a[-1] >= b[-1])
