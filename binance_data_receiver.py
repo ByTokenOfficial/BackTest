@@ -23,6 +23,7 @@ def get_binance_bars(symbol, interval, startTime, endTime):
     df = pd.DataFrame(json.loads(requests.get(url, params = req_params).text))
  
     if (len(df.index) == 0):
+        print(f'No data fetched for {symbol} {interval} from {startTime} to {endTime}')
         return None
     
     df = df.iloc[:, 0:6]
@@ -33,11 +34,11 @@ def get_binance_bars(symbol, interval, startTime, endTime):
     df.low       = df.low.astype("float")
     df.close     = df.close.astype("float")
     df.volume    = df.volume.astype("float")
+
+    df.index = pd.to_datetime(df['datetime'], unit='ms')
+    df.drop(columns=['datetime'], inplace=True)
+    df.index.rename('datetime', inplace=True)
     
-    df['adj_close'] = df['close']
-     
-    df.index = [dt.datetime.fromtimestamp(x / 1000.0) for x in df.datetime]
- 
     return df
 
 
@@ -66,12 +67,20 @@ def get_data_in_range(symbol, interval, startTime, endTime):
 def fetch_and_save(saved_dir, symbol, interval, startTime, endTime):
     filename = f'/{symbol}_{interval}.csv'
     data = get_data_in_range(symbol, interval, startTime, endTime)
+    print("Saving data to " + saved_dir + filename)
     data.to_csv(saved_dir + filename)
 
-def fetch_multiple_symbols(symbols, interval, startTime, endTime):
+def fetch_multiple_symbols(saved_dir, symbols, interval, startTime, endTime):
     # 多線程處理
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        executor.map(fetch_and_save, symbols, [interval]*len(symbols), [startTime]*len(symbols), [endTime]*len(symbols))
+        executor.map(
+            fetch_and_save,
+            [saved_dir]*len(symbols),
+            symbols,
+            [interval]*len(symbols),
+            [startTime]*len(symbols),
+            [endTime]*len(symbols)
+            )
 
 
 if __name__ == '__main__':
@@ -83,5 +92,4 @@ if __name__ == '__main__':
     endTime = dt.datetime(2023, 8, 31)
     # 輸入儲存目錄的絕對路徑
     saved_dir = f'YOUR_DIR_PATH'
-
     fetch_multiple_symbols(saved_dir, symbols, interval, startTime, endTime)
