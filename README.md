@@ -1,17 +1,19 @@
 # **基於 Python BackTrader 框架開發的回測系統**
+# 依賴包安裝
+```pip install -r requirements.txt``` 或 ```pip3 install -r requirements.txt```
 # binance_data_receiver.py
 - 用於獲取幣安交易所中的歷史OHLCV資料
 - 適用任意時框（限幣安API所支援時框，需要客製化時匡請使用 BuildKlines.py 檔案）
 - 適用任意時間範圍
 - 採用多線程抓取，適用於多幣種
+- CSV 標頭為 datetime, open, high, low, close, volume
 # Utils 資料夾
 - **BuildKlines.py**
+    - 單時框轉換為多時框架（e.g. 1分鐘線轉 1小時、4小時、1日）
     - 建構 K 棒
-    - 時框重新取樣
     - K 棒完整性
 - **DataframeConvertor.py**
-    - 幣安資料轉 CSV 檔
-    - JSON 格式資料轉 CSV 檔
+    - JSON 格式資料轉 CSV 檔 (json_to_csv)
 # Indicators 資料夾
 - **VolumeIndicator.py 指標範例**
     - 聲明 lines
