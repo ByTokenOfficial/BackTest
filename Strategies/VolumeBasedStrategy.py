@@ -84,7 +84,10 @@ class VolumeBased(bt.Strategy):
             print('%s, %s' % (dt.isoformat(), txt))
 
     # 優化參數用
-    def stop(self):
-        print(self.params.lookback_period, self.params.buy_threshold_percentage,
-              self.params.sell_threshold_percentage, self.params.cooldown_period,
-              self.broker.getvalue())
+    def stop(self, bayes=True):
+        if bayes:
+            return
+        else:
+            print(self.params.lookback_period, self.params.buy_threshold_percentage,
+                self.params.sell_threshold_percentage, self.params.cooldown_period,
+                self.broker.getvalue())

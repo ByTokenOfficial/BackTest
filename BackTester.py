@@ -18,10 +18,10 @@ class BackTester:
                 'close': 'float64',
                 'volume': 'float64'
             }
-            print('Loading data...')
+            # print('Loading data...')
             df = pd.read_csv(filename, dtype=dtype, parse_dates=['Time'], index_col='Time')
-            print(df.head())
-            print('Feeding data to backtrader...')
+            # print(df.head())
+            # print('Feeding data to backtrader...')
             self.data = bt.feeds.PandasData(
                                             dataname=df,
                                             timeframe=bt.TimeFrame.Minutes
